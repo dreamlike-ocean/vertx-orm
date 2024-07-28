@@ -9,7 +9,8 @@
         <version>0.0.1</version>
     </parent>
 
-    <artifactId>vertx-orm-backend</artifactId>
+    <artifactId>vertx-orm-apt</artifactId>
+    <version>${backend.version}</version>
 
     <properties>
         <maven.compiler.source>${java.version}</maven.compiler.source>

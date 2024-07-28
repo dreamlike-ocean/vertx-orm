@@ -10,13 +10,16 @@ import java.util.Set;
 
 @SupportedAnnotationTypes("io.github.dreamlike.orm.base.annotation.ReactiveMapper")
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
-public class CompileTimeProcessor extends AbstractProcessor  {
-    private ProcessingEnvironment env;
+public class CompileTimeProcessor extends AbstractProcessor {
+    ProcessingEnvironment env;
+
+    private CompileMapperRecorder recorder;
 
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         this.env = processingEnv;
+        this.recorder = new CompileMapperRecorder(this);
     }
 
     @Override
@@ -27,7 +30,7 @@ public class CompileTimeProcessor extends AbstractProcessor  {
 
         Set<? extends Element> mapperClass = roundEnv.getElementsAnnotatedWith(ReactiveMapper.class);
         for (Element element : mapperClass) {
-
+            recorder.record(element);
         }
         return false;
     }

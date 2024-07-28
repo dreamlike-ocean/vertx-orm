@@ -7,7 +7,8 @@
     <name>vertx-orm</name>
     <modules>
         <module>vertx-orm-base</module>
-        <module>vertx-orm-backend</module>
+        <module>vertx-orm-apt</module>
+        <module>vertx-orm-apt-test</module>
     </modules>
     <groupId>io.github.dreamlike</groupId>
     <artifactId>vertx-orm</artifactId>
@@ -22,6 +23,7 @@
         <junit-jupiter.version>5.9.1</junit-jupiter.version>
         <vertx.version>4.5.8</vertx.version>
         <base.version>0.0.1-snapshot</base.version>
+        <backend.version>0.0.1-snapshot</backend.version>
     </properties>
 
     <licenses>
@@ -89,6 +91,12 @@
                 <groupId>io.github.dreamlike</groupId>
                 <artifactId>vertx-orm-base</artifactId>
                 <version>${base.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.github.dreamlike</groupId>
+                <artifactId>vertx-orm-apt</artifactId>
+                <version>${backend.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
