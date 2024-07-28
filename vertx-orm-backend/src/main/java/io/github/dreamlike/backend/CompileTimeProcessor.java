@@ -26,7 +26,9 @@ public class CompileTimeProcessor extends AbstractProcessor  {
         }
 
         Set<? extends Element> mapperClass = roundEnv.getElementsAnnotatedWith(ReactiveMapper.class);
+        for (Element element : mapperClass) {
 
+        }
         return false;
     }
 }
