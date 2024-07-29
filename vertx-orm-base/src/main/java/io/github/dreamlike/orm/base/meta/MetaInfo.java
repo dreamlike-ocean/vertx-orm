@@ -1,6 +1,7 @@
 package io.github.dreamlike.orm.base.meta;
 
 
+import io.github.dreamlike.orm.base.db.VertxRowReflection;
 import io.vertx.sqlclient.Row;
 import jakarta.persistence.Column;
 import jakarta.persistence.Transient;
@@ -16,7 +17,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public record MetaInfo<T>(Function<Row, T> ctor, List<MetaField<T, ?>> fields) {
+public record MetaInfo<T>(Class<T> ownerClass,Function<Row, T> ctor, List<MetaField<T, ?>> fields) {
 
     public record MetaField<Owner, FType>(String dbField, Field field, BiConsumer<Owner, FType> setter,
                                           Function<Owner, FType> getter) {
@@ -33,7 +34,6 @@ public record MetaInfo<T>(Function<Row, T> ctor, List<MetaField<T, ?>> fields) {
         try {
             Function<Row, RT> ctor = parseCtor(tClass);
             List<MetaField<RT, ?>> metaFields;
-
             if (tClass.isRecord()) {
                 metaFields = parseRecordMetaField(tClass);
             } else {
@@ -44,7 +44,7 @@ public record MetaInfo<T>(Function<Row, T> ctor, List<MetaField<T, ?>> fields) {
                         .filter(Objects::nonNull)
                         .collect(Collectors.toUnmodifiableList());
             }
-            return new MetaInfo<>(ctor, metaFields);
+            return new MetaInfo<>(tClass, ctor, metaFields);
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
@@ -132,10 +132,18 @@ public record MetaInfo<T>(Function<Row, T> ctor, List<MetaField<T, ?>> fields) {
                         .orElseGet(recordComponent::getName);
                 Field field = clazz.getDeclaredField(recordComponent.getName());
                 MethodHandle getter = lookup.unreflect(accessor);
+                Class<?> type = recordComponent.getType();
+                getter = type.isPrimitive() ? MethodHandles.filterReturnValue(getter, MetaHelper.boxMH(type)) : getter;
                 list.add(new MetaInfo.MetaField<>(
                         dbFieldName,
                         field,
-                        MetaHelper.setterMhBinder(MethodHandles.empty(MethodType.methodType(void.class, clazz, recordComponent.getType()))),
+                        MetaHelper.setterMhBinder(
+                                MethodHandles.empty(
+                                        MethodType
+                                                .methodType(void.class, clazz, type)
+                                                .wrap() // boxed
+                                                .changeReturnType(void.class)
+                                )),
                         MetaHelper.getterMhBinder(getter)
                 ));
             }

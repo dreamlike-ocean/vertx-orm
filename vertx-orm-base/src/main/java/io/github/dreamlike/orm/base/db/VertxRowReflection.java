@@ -1,4 +1,4 @@
-package io.github.dreamlike.orm.base.meta;
+package io.github.dreamlike.orm.base.db;
 
 import io.vertx.sqlclient.Row;
 import io.vertx.sqlclient.data.Numeric;
@@ -10,41 +10,48 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 
-class VertxRowReflection {
+public class VertxRowReflection {
 
     private final static int NOT_FIND = -1;
 
-    final static MethodHandle getIntegerMH;
+    public final static MethodHandle getIntegerMH;
 
-    final static MethodHandle getIntMh;
+    public final static MethodHandle getIntMh;
 
-    final static MethodHandle getLongMH;
+    public final static MethodHandle getLongMH;
 
-    final static MethodHandle getLongPrimitiveMH;
+    public final static MethodHandle getLongPrimitiveMH;
 
-    final static MethodHandle getDoubleMH;
+    public final static MethodHandle getDoubleMH;
 
-    final static MethodHandle getDoublePrimitiveMH;
+    public final static MethodHandle getDoublePrimitiveMH;
 
-    final static MethodHandle getFloatMh;
+    public final static MethodHandle getFloatMh;
 
-    final static MethodHandle getFloatPrimitiveMh;
+    public final static MethodHandle getFloatPrimitiveMh;
 
-    final static MethodHandle getBooleanMH;
+    public final static MethodHandle getBooleanMH;
 
-    final static MethodHandle getBooleanPrimitiveMH;
+    public final static MethodHandle getBooleanPrimitiveMH;
 
-    final static MethodHandle getStringMH;
+    public final static MethodHandle getStringMH;
 
-    final static MethodHandle getLocalDateMH;
+    public final static MethodHandle getLocalDateMH;
 
-    final static MethodHandle getLocalDateTimeMH;
+    public final static MethodHandle getLocalDateTimeMH;
 
-    final static MethodHandle getByteArrayMH;
+    public final static MethodHandle getByteArrayMH;
 
-    final static Map<Class<?>, MethodHandle> mapperMH;
+    public final static MethodHandle getByteMH;
+
+    public final static MethodHandle getBytePrimitiveMH;
+
+    public final static MethodHandle getShortMH;
+
+    public final static MethodHandle getShortPrimitiveMH;
+
+    public final static Map<Class<?>, MethodHandle> mapperMH;
 
     static {
         try {
@@ -63,6 +70,10 @@ class VertxRowReflection {
             getLocalDateMH = lookup.findStatic(VertxRowReflection.class, "getLocalDate", MethodType.methodType(LocalDate.class, Row.class, String.class));
             getLocalDateTimeMH = lookup.findStatic(VertxRowReflection.class, "getLocalDateTime", MethodType.methodType(LocalDateTime.class, Row.class, String.class));
             getByteArrayMH = lookup.findStatic(VertxRowReflection.class, "getByteArray", MethodType.methodType(byte[].class, Row.class, String.class));
+            getByteMH = lookup.findStatic(VertxRowReflection.class, "getByte", MethodType.methodType(Byte.class, Row.class, String.class));
+            getBytePrimitiveMH =lookup.findStatic(VertxRowReflection.class, "getBytePrimitive", MethodType.methodType(byte.class, Row.class, String.class));
+            getShortMH = lookup.findStatic(VertxRowReflection.class, "getShort", MethodType.methodType(Short.class, Row.class, String.class));
+            getShortPrimitiveMH =lookup.findStatic(VertxRowReflection.class, "getShortPrimitive", MethodType.methodType(short.class, Row.class, String.class));
 
             Map<Class<?>, MethodHandle> mhHolder = new HashMap<>();
 
@@ -80,6 +91,10 @@ class VertxRowReflection {
             mhHolder.put(LocalDate.class, getLocalDateMH);
             mhHolder.put(LocalDateTime.class, getLocalDateTimeMH);
             mhHolder.put(byte[].class, getByteArrayMH);
+            mhHolder.put(Byte.class, getByteMH);
+            mhHolder.put(byte.class, getBytePrimitiveMH);
+            mhHolder.put(Short.class, getShortMH);
+            mhHolder.put(short.class, getShortPrimitiveMH);
 
             mapperMH = Map.copyOf(mhHolder);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -112,6 +127,54 @@ class VertxRowReflection {
             return 0;
         }
         return row.getInteger(index);
+    }
+
+    public static byte getBytePrimitive(Row row, String dbFieldName) {
+        int index = row.getColumnIndex(dbFieldName);
+        if (index == NOT_FIND) {
+            return 0;
+        }
+        Numeric numeric = row.getNumeric(index);
+        if (numeric == null) {
+            return 0;
+        }
+        return numeric.byteValue();
+    }
+
+    public static Byte getByte(Row row, String dbFieldName) {
+        int index = row.getColumnIndex(dbFieldName);
+        if (index == NOT_FIND) {
+            return 0;
+        }
+        Numeric numeric = row.getNumeric(index);
+        if (numeric == null) {
+            return null;
+        }
+        return numeric.byteValue();
+    }
+
+    public static short getShortPrimitive(Row row, String dbFieldName) {
+        int index = row.getColumnIndex(dbFieldName);
+        if (index == NOT_FIND) {
+            return 0;
+        }
+        Numeric numeric = row.getNumeric(index);
+        if (numeric == null) {
+            return 0;
+        }
+        return numeric.shortValue();
+    }
+
+    public static Short getShort(Row row, String dbFieldName) {
+        int index = row.getColumnIndex(dbFieldName);
+        if (index == NOT_FIND) {
+            return 0;
+        }
+        Numeric numeric = row.getNumeric(index);
+        if (numeric == null) {
+            return null;
+        }
+        return numeric.shortValue();
     }
 
     public static Long getLong(Row row, String dbFieldName) {

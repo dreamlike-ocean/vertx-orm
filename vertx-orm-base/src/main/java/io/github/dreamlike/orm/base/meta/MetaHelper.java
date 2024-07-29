@@ -27,7 +27,16 @@ public class MetaHelper {
            );
            return (Supplier<T>) callSite.getTarget().invoke();
        } catch (LambdaConversionException lambdaConversionException) {
-           return MethodHandleProxies.asInterfaceInstance(Supplier.class, methodHandle);
+//           return MethodHandleProxies.asInterfaceInstance(Supplier.class, methodHandle);
+           CallSite callSite = LambdaMetafactory.metafactory(
+                   MethodHandles.lookup(),
+                   "get",
+                   MethodType.methodType(Supplier.class, MethodHandle.class),
+                   MethodType.methodType(Object.class),
+                   MethodHandles.exactInvoker(methodHandle.type()),
+                   methodHandle.type()
+           );
+           return (Supplier<T>) callSite.getTarget().invoke(methodHandle);
        }
     }
 
@@ -44,8 +53,15 @@ public class MetaHelper {
            );
            return (BiConsumer<Owner, FType>) callSite.getTarget().invoke();
        } catch (LambdaConversionException lambdaConversionException) {
-           //使用降级方案
-           return MethodHandleProxies.asInterfaceInstance(BiConsumer.class, methodHandle);
+           CallSite callSite = LambdaMetafactory.metafactory(
+                   MethodHandles.lookup(),
+                   "accept",
+                   MethodType.methodType(BiConsumer.class, MethodHandle.class),
+                   MethodType.methodType(void.class, Object.class, Object.class),
+                   MethodHandles.exactInvoker(methodHandle.type()),
+                   methodHandle.type()
+           );
+           return (BiConsumer<Owner, FType>) callSite.getTarget().invoke(methodHandle);
        }
     }
 
@@ -124,7 +140,15 @@ public class MetaHelper {
             );
             return (Function<Owner, FType>) callSite.getTarget().invoke();
         } catch (LambdaConversionException lambdaConversionException) {
-            return MethodHandleProxies.asInterfaceInstance(Function.class, methodHandle);
+            CallSite callSite = LambdaMetafactory.metafactory(
+                    MethodHandles.lookup(),
+                    "apply",
+                    MethodType.methodType(Function.class, MethodHandle.class),
+                    MethodType.methodType(Object.class, Object.class),
+                    MethodHandles.exactInvoker(methodHandle.type()),
+                    methodHandle.type()
+            );
+            return (Function<Owner, FType>) callSite.getTarget().invoke(methodHandle);
         }
     }
 

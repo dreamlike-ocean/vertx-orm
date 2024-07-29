@@ -1,12 +1,11 @@
 import entity.BaseEntity;
 import entity.DBEntity;
 import entity.DBRecord;
-import io.github.dreamlike.orm.base.TypeHandler;
+import io.github.dreamlike.orm.base.meta.TypeHandler;
 import io.github.dreamlike.orm.base.meta.MetaInfo;
 import io.vertx.sqlclient.Row;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.lang.reflect.ParameterizedType;

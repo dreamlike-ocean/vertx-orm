@@ -1,4 +1,4 @@
-package io.github.dreamlike.orm.base;
+package io.github.dreamlike.orm.base.meta;
 
 import io.vertx.sqlclient.Row;
 
