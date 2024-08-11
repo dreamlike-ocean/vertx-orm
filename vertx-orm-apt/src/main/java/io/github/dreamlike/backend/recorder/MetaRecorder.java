@@ -1,6 +1,8 @@
-package io.github.dreamlike.backend;
+package io.github.dreamlike.backend.recorder;
 
-
+import io.github.dreamlike.backend.CompileTimeProcessor;
+import io.github.dreamlike.backend.common.AptHelper;
+import io.github.dreamlike.backend.common.CompileMetaInfo;
 import io.github.dreamlike.backend.exception.CtorNonMatchException;
 import io.github.dreamlike.backend.exception.MapperFormatException;
 import io.github.dreamlike.orm.base.helper.Pair;
@@ -16,100 +18,55 @@ import javax.lang.model.util.ElementFilter;
 import javax.tools.Diagnostic;
 import java.util.*;
 
-public class CompileTimeMetaInfoRecorder {
-    Map<String /*className */, String /*MetaInfo init code */> records;
+public class MetaRecorder {
+    CompileTimeProcessor currentProcessor;
 
-    Map<String, CompileMetaInfo> metaInfoMap;
 
-    private final CompileTimeProcessor currentProcessor;
+    Map<String /*className */, String /*MetaInfo init code */> records = new HashMap<>();
 
-    public CompileTimeMetaInfoRecorder(CompileTimeProcessor currentProcessor) {
-        this.currentProcessor = currentProcessor;
-        this.records = new HashMap<>();
-        this.metaInfoMap = new HashMap<>();
+    Map<String, CompileMetaInfo> metaInfoMap = new HashMap<>();
+
+    public MetaRecorder(CompileTimeProcessor compileTimeProcessor) {
+        this.currentProcessor = compileTimeProcessor;
     }
 
-
-    public void record(Element reactiveMapperInterface) {
-        ElementKind kind = reactiveMapperInterface.getKind();
-        if (!kind.isInterface()) {
-            return;
-        }
-
-        var methodElements = ElementFilter.methodsIn(reactiveMapperInterface.getEnclosedElements());
-
+    public void recordMeta(Element rowMapperElement) {
+        var methodElements = ElementFilter.methodsIn(rowMapperElement.getEnclosedElements());
         for (var methodElement : methodElements) {
-            TypeMirror returnType = methodElement.getReturnType();
-            recordTypeMeta(reactiveMapperInterface, methodElement, returnType);
+
+            if (methodElement.getModifiers().contains(Modifier.DEFAULT)) {
+                continue;
+            }
+
+            List<? extends VariableElement> paramList = methodElement.getParameters();
+            if (paramList.size() != 1 || !currentProcessor.aptHelper.isRowList(paramList.getFirst())) {
+                //只能有一个参数 且 参数类型是List<io.vertx.sqlclient.Row>
+                throw new MapperFormatException(rowMapperElement.toString() + "." + methodElement.toString() + " has error signature! \n" + "signature must like Entity foo(List<io.vertx.sqlclient.Row>)");
+            }
+            recordTypeMeta0(rowMapperElement, methodElement);
         }
     }
 
-    public String toJavaFile() {
-        //todo
-        String values = String.join("\n", records.values());
-        return String.format(
-                """
-                         package io.github.dreamlike.backend;
-                         import io.github.dreamlike.orm.base.meta.*;
-                         import io.github.dreamlike.orm.base.db.VertxRowReflection;
-                         import java.util.ArrayList;
-                         import java.util.List;
-                         import java.util.Map;
-                         import java.util.function.Function;
-                         import java.util.stream.Collectors;
-                        public class CompileTimeMetaInfoCollection implements MetaInfoCollection {
-                                                                     
-                             private final TypeHandleCache typeHandleCache;
-                             
-                             private final Map<Class<?>, MetaInfo<?>> metaInfoMap;
-                             
-                             public CompileTimeMetaInfoCollection(TypeHandleCache typeHandleCache) {
-                                 this.typeHandleCache = typeHandleCache;
-                                 List<MetaInfo<?>> metaInfos = new ArrayList<>();
-                                 init(typeHandleCache, metaInfos);
-                                 this.metaInfoMap = metaInfos.stream()
-                                         .collect(Collectors.toMap(MetaInfo::ownerClass, Function.identity(), (a, b) -> a));
-                             }
-                             
-                             @Override
-                             public <T> MetaInfo<T> getMetaInfo(Class<T> clazz) {
-                                 return (MetaInfo<T>) metaInfoMap.get(clazz);
-                             }
-                           
-                                                     
-                             private void init(TypeHandleCache typeHandleCache, List<MetaInfo<?>> metaInfos) {
-                                    %s
-                            
-                              }
-                        }                        
-                         
-                         """.trim(),
-                values
-        );
-    }
-
-
-    private void recordTypeMeta(Element reactiveMapperInterface, ExecutableElement element, TypeMirror typeMirror) {
+    private void recordTypeMeta0(Element rowMapperElement, ExecutableElement methodElement) {
 
         Messager messager = currentProcessor.env.getMessager();
-
-        TypeKind typeKind = typeMirror.getKind();
+        TypeMirror returnType = methodElement.getReturnType();
+        TypeKind typeKind = returnType.getKind();
         if (typeKind != TypeKind.DECLARED) {
             messager.printMessage(Diagnostic.Kind.NOTE, typeKind.name() + " isnt declared type");
             return;
         }
 
-        TypeElement currentType = (TypeElement) currentProcessor.env.getTypeUtils().asElement(typeMirror);
+        TypeElement currentType = (TypeElement) currentProcessor.env.getTypeUtils().asElement(returnType);
         var name = currentType.getQualifiedName().toString();
 
         //先判断下常用集合类
-        if (List.class.getName().equals(name) || Set.class.getName().equals(name) || Collection.class.getName().equals(name)) {
+        if (AptHelper.isCollection(currentType)) {
             //然后把签名上的泛型记录下来
-            List<? extends TypeMirror> typeArguments = ((DeclaredType) typeMirror).getTypeArguments();
-            if (typeArguments.isEmpty()) {
-                throw new MapperFormatException(reactiveMapperInterface.toString() + "." + element.toString() + " has error signature! About generic Type!");
+            currentType = currentProcessor.aptHelper.removeCollectionGeneric(returnType);
+            if (currentType == null) {
+                throw new MapperFormatException(rowMapperElement.toString() + "." + methodElement.toString() + " has error signature! About generic Type!");
             }
-            currentType = (TypeElement) currentProcessor.env.getTypeUtils().asElement(typeArguments.getFirst());
             name = currentType.getQualifiedName().toString();
         }
 
@@ -143,7 +100,7 @@ public class CompileTimeMetaInfoRecorder {
                 String.join(",", fieldsStatement)
         );
         records.putIfAbsent(name, initStatement);
-        metaInfoMap.putIfAbsent(name, new CompileMetaInfo(newStatement, fieldInjectors));
+        metaInfoMap.putIfAbsent(name, new CompileMetaInfo(currentType.getKind() == ElementKind.RECORD,  newStatement, fieldInjectors));
     }
 
     //生成 -> new io.github.dreamlike.backend.test.entity.DBEntity()
@@ -229,7 +186,8 @@ public class CompileTimeMetaInfoRecorder {
 
             String setterMethodReference = isRecord ? "(o,t) -> {}" : String.format("%s::set%s", ownerClassName, attributeName);
             String getterMethodReference = isRecord ? String.format("%s::%s", ownerClassName, fieldName) : String.format("%s::get%s", ownerClassName, attributeName);
-
+            String setterMethodName = isRecord ? "" : String.format("set%s", attributeName);
+            String getterMethodName = isRecord ? "" : String.format("get%s", attributeName);
 
             String dbFieldName = Optional.ofNullable(variableElement.getAnnotation(Column.class))
                     .map(Column::name)
@@ -250,10 +208,11 @@ public class CompileTimeMetaInfoRecorder {
 
             );
 
-            fieldInjectors.put(dbFieldName, new CompileMetaInfo.FieldInjector(setterMethodReference, getterMethodReference));
+            fieldInjectors.put(dbFieldName, new CompileMetaInfo.FieldInjector(variableElement, setterMethodName, getterMethodName, CompileMetaInfo.MappingType.getMappingType(variableElement)));
         }
 
         return new Pair<>(fieldMetaInfoStatement, fieldInjectors);
     }
+
 
 }

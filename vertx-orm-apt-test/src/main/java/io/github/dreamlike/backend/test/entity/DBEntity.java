@@ -1,6 +1,9 @@
 package io.github.dreamlike.backend.test.entity;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.OneToMany;
+
+import java.util.List;
 
 public class DBEntity extends BaseEntity {
 
